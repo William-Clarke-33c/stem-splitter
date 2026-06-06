@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import WaveSurfer from "wavesurfer.js";
+import { apiFetch } from "./api.js";
 
 const STEM_ICONS   = { vocals: "🎤", drums: "🥁", bass: "🎸", other: "🎹" };
 const STEM_LABELS  = { vocals: "Vocals", drums: "Drums", bass: "Bass", other: "Other" };
@@ -169,7 +170,8 @@ export default function JobStatus({ jobId, filename, onComplete }) {
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(`/api/jobs/${jobId}`);
+        const res = await apiFetch(`/api/jobs/${jobId}`);
+        if (!res.ok) return;
         const data = await res.json();
         setJob(data);
         if (data.status === "done" || data.status === "error") {
@@ -196,10 +198,12 @@ export default function JobStatus({ jobId, filename, onComplete }) {
   }, [jobId]);
 
   const statusColor = {
-    pending: "#888", processing: "#f59e0b", done: "#34d399", error: "#f87171",
+    queued: "#888", processing: "#f59e0b", done: "#34d399", error: "#f87171",
   }[job.status] ?? "#888";
 
   const isDone = job.status === "done";
+  const isQueued = job.status === "queued";
+  const isProcessing = job.status === "processing";
 
   return (
     <div style={{
@@ -213,18 +217,21 @@ export default function JobStatus({ jobId, filename, onComplete }) {
             {filename}
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-            {job.status === "processing" && <Spinner />}
+            {isProcessing && <Spinner />}
             <span style={{ fontSize: 13, color: statusColor }}>
-              {job.status === "processing"
+              {isProcessing
                 ? `Splitting stems… ${job.progress > 0 ? `${job.progress}%` : ""}`
-                : job.status === "pending" ? "Queued…"
-                : job.status === "done"    ? "Done"
+                : isQueued
+                  ? job.queue_position
+                    ? `Position ${job.queue_position} in queue`
+                    : "Queued…"
+                : isDone ? "Done"
                 : "Failed"}
             </span>
           </div>
 
           {/* Progress bar */}
-          {job.status === "processing" && (
+          {isProcessing && (
             <div style={{
               marginTop: 8, height: 3, borderRadius: 2,
               background: "#2a2a38", overflow: "hidden", width: "100%",

@@ -1,14 +1,33 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Dropzone from "./Dropzone.jsx";
 import TrimmerPanel from "./TrimmerPanel.jsx";
 import JobStatus from "./JobStatus.jsx";
 import HistorySection from "./HistorySection.jsx";
+import PasswordGate from "./PasswordGate.jsx";
 import useHistory from "./useHistory.js";
+import { apiFetch, getPassword } from "./api.js";
 
 export default function App() {
   const [pendingFile, setPendingFile] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const { history, addEntry, removeEntry, clearHistory } = useHistory();
+
+  // On mount: check if password is required
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.password_required && !getPassword()) {
+          setNeedsAuth(true);
+        }
+      })
+      .catch(() => {});
+
+    const handler = () => setNeedsAuth(true);
+    window.addEventListener("auth:required", handler);
+    return () => window.removeEventListener("auth:required", handler);
+  }, []);
 
   const addJob = useCallback((jobId, filename) => {
     setJobs((prev) => [{ jobId, filename, key: jobId }, ...prev]);
@@ -25,8 +44,9 @@ export default function App() {
       form.append("start_time", startTime ?? "");
       form.append("end_time", endTime ?? "");
 
-      const res = await fetch("/api/split", { method: "POST", body: form });
+      const res = await apiFetch("/api/split", { method: "POST", body: form });
       if (!res.ok) {
+        if (res.status === 401) return;
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || `Upload failed (${res.status})`);
       }
@@ -36,6 +56,10 @@ export default function App() {
       alert(e.message);
     }
   }, [addJob]);
+
+  if (needsAuth) {
+    return <PasswordGate onUnlock={() => setNeedsAuth(false)} />;
+  }
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
