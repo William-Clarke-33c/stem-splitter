@@ -8,6 +8,14 @@ const MODELS = [
   { value: "htdemucs_6s", label: "htdemucs_6s", desc: "6-stem — adds piano & guitar" },
 ];
 
+const MODEL_STEMS = {
+  htdemucs:    ["vocals", "drums", "bass", "other"],
+  htdemucs_ft: ["vocals", "drums", "bass", "other"],
+  htdemucs_6s: ["vocals", "drums", "bass", "other", "piano", "guitar"],
+};
+
+const STEM_ICONS = { vocals: "🎤", drums: "🥁", bass: "🎸", other: "🎹", piano: "🎹", guitar: "🎸" };
+
 const FORMATS = [
   { value: "wav",  label: "WAV",  desc: "Lossless" },
   { value: "flac", label: "FLAC", desc: "Lossless compressed" },
@@ -34,6 +42,7 @@ export default function TrimmerPanel({ file, onSubmit, onCancel }) {
   const [end, setEnd] = useState(0);
   const [model, setModel] = useState("htdemucs");
   const [format, setFormat] = useState("wav");
+  const [selectedStems, setSelectedStems] = useState(new Set(MODEL_STEMS["htdemucs"]));
 
   useEffect(() => {
     if (!containerRef.current || !file) return;
@@ -103,11 +112,41 @@ export default function TrimmerPanel({ file, onSubmit, onCancel }) {
 
   const isFullTrack = start < 0.1 && Math.abs(end - duration) < 0.1;
 
+  const availableStems = MODEL_STEMS[model];
+  const allSelected = availableStems.every((s) => selectedStems.has(s));
+
+  const toggleStem = (stem) => {
+    setSelectedStems((prev) => {
+      const next = new Set(prev);
+      if (next.has(stem)) {
+        if (next.size === 1) return prev; // keep at least one
+        next.delete(stem);
+      } else {
+        next.add(stem);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelectedStems(
+      allSelected
+        ? new Set([availableStems[0]]) // deselect all but first
+        : new Set(availableStems)
+    );
+  };
+
+  const onModelChange = (val) => {
+    setModel(val);
+    setSelectedStems(new Set(MODEL_STEMS[val]));
+  };
+
   const handleSubmit = () => {
     onSubmit({
       file,
       model,
       format,
+      stems: [...selectedStems],
       startTime: isFullTrack ? "" : String(Math.round(start)),
       endTime:   isFullTrack ? "" : String(Math.round(end)),
     });
@@ -202,11 +241,7 @@ export default function TrimmerPanel({ file, onSubmit, onCancel }) {
         {/* Model */}
         <div style={{ flex: 2 }}>
           <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 4 }}>Model</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            style={selectStyle}
-          >
+          <select value={model} onChange={(e) => onModelChange(e.target.value)} style={selectStyle}>
             {MODELS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
           <p style={{ fontSize: 11, color: "#444", marginTop: 4 }}>{modelDesc}</p>
@@ -214,13 +249,53 @@ export default function TrimmerPanel({ file, onSubmit, onCancel }) {
         {/* Format */}
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 4 }}>Format</label>
-          <select
-            value={format}
-            onChange={(e) => setFormat(e.target.value)}
-            style={selectStyle}
-          >
+          <select value={format} onChange={(e) => setFormat(e.target.value)} style={selectStyle}>
             {FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label} — {f.desc}</option>)}
           </select>
+        </div>
+      </div>
+
+      {/* Stem selection */}
+      <div>
+        <label style={{ fontSize: 11, color: "#555", display: "block", marginBottom: 8 }}>Stems</label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {/* All chip */}
+          <button
+            onClick={toggleAll}
+            style={{
+              padding: "5px 12px",
+              borderRadius: 20,
+              border: `1px solid ${allSelected ? "#7c6ff7" : "#2e2e3a"}`,
+              background: allSelected ? "rgba(124,111,247,0.15)" : "#1a1a1f",
+              color: allSelected ? "#a78bfa" : "#666",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            All
+          </button>
+
+          {availableStems.map((stem) => {
+            const active = selectedStems.has(stem);
+            return (
+              <button
+                key={stem}
+                onClick={() => toggleStem(stem)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 20,
+                  border: `1px solid ${active ? "#7c6ff7" : "#2e2e3a"}`,
+                  background: active ? "rgba(124,111,247,0.15)" : "#1a1a1f",
+                  color: active ? "#a78bfa" : "#555",
+                  fontSize: 12, fontWeight: 500, cursor: "pointer",
+                  transition: "all 0.15s",
+                  display: "flex", alignItems: "center", gap: 5,
+                }}
+              >
+                {STEM_ICONS[stem]} {stem}
+              </button>
+            );
+          })}
         </div>
       </div>
 

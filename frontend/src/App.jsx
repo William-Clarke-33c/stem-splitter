@@ -14,13 +14,14 @@ export default function App() {
     setJobs((prev) => [{ jobId, filename, key: jobId }, ...prev]);
   }, []);
 
-  const handleSubmit = useCallback(async ({ file, model, format, startTime, endTime }) => {
+  const handleSubmit = useCallback(async ({ file, model, format, stems, startTime, endTime }) => {
     setPendingFile(null);
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("model", model);
       form.append("output_format", format);
+      form.append("stems", (stems ?? []).join(","));
       form.append("start_time", startTime ?? "");
       form.append("end_time", endTime ?? "");
 

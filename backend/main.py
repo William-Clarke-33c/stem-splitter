@@ -79,6 +79,7 @@ def run_demucs(
     output_format: str,
     start_time: Optional[float],
     end_time: Optional[float],
+    requested_stems: Optional[list] = None,
 ):
     try:
         jobs[job_id]["status"] = "processing"
@@ -124,7 +125,11 @@ def run_demucs(
         ext = {"mp3": ".mp3", "flac": ".flac"}.get(output_format, ".wav")
         track_name = input_path.stem
         stem_dir = output_dir / model / track_name
-        stems = [s for s in ALL_STEMS if (stem_dir / f"{s}{ext}").exists()]
+        stems = [
+            s for s in ALL_STEMS
+            if (stem_dir / f"{s}{ext}").exists()
+            and (requested_stems is None or s in requested_stems)
+        ]
 
         jobs[job_id].update({
             "status": "done",
@@ -159,6 +164,7 @@ async def split(
     output_format: str = Form("wav"),
     start_time: str = Form(""),
     end_time: str = Form(""),
+    stems: str = Form(""),  # comma-separated, empty = all
 ):
     allowed_ext = {".mp3", ".wav", ".flac", ".aiff", ".m4a", ".ogg"}
     ext = Path(file.filename).suffix.lower()
@@ -171,6 +177,7 @@ async def split(
 
     start = parse_time(start_time)
     end = parse_time(end_time)
+    requested_stems = [s.strip() for s in stems.split(",") if s.strip()] or None
 
     job_id = str(uuid.uuid4())
     job_dir = UPLOAD_DIR / job_id
@@ -186,9 +193,10 @@ async def split(
         "filename": file.filename,
         "model": model,
         "output_format": output_format,
+        "requested_stems": requested_stems,
     }
     background_tasks.add_task(
-        run_demucs, job_id, input_path, job_dir, model, output_format, start, end
+        run_demucs, job_id, input_path, job_dir, model, output_format, start, end, requested_stems
     )
     return {"job_id": job_id}
 
