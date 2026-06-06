@@ -22,7 +22,7 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the htdemucs model weights so first request is fast
-RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')" 2>&1 | tee /tmp/model-download.log && echo "Model download done"
 
 # Copy backend
 COPY backend/ ./backend/
