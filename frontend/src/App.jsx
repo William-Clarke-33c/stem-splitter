@@ -2,10 +2,13 @@ import { useState, useCallback } from "react";
 import Dropzone from "./Dropzone.jsx";
 import TrimmerPanel from "./TrimmerPanel.jsx";
 import JobStatus from "./JobStatus.jsx";
+import HistorySection from "./HistorySection.jsx";
+import useHistory from "./useHistory.js";
 
 export default function App() {
   const [pendingFile, setPendingFile] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const { history, addEntry, removeEntry, clearHistory } = useHistory();
 
   const addJob = useCallback((jobId, filename) => {
     setJobs((prev) => [{ jobId, filename, key: jobId }, ...prev]);
@@ -57,10 +60,21 @@ export default function App() {
       {jobs.length > 0 && (
         <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 16 }}>
           {jobs.map((j) => (
-            <JobStatus key={j.key} jobId={j.jobId} filename={j.filename} />
+            <JobStatus
+              key={j.key}
+              jobId={j.jobId}
+              filename={j.filename}
+              onComplete={addEntry}
+            />
           ))}
         </div>
       )}
+
+      <HistorySection
+        history={history}
+        onRemove={removeEntry}
+        onClear={clearHistory}
+      />
     </div>
   );
 }

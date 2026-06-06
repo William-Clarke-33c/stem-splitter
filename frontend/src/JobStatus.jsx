@@ -161,9 +161,10 @@ function StemCard({ jobId, stem }) {
   );
 }
 
-export default function JobStatus({ jobId, filename }) {
+export default function JobStatus({ jobId, filename, onComplete }) {
   const [job, setJob] = useState({ status: "pending", progress: 0, stems: [] });
   const intervalRef = useRef(null);
+  const notifiedRef = useRef(false);
 
   useEffect(() => {
     const poll = async () => {
@@ -173,6 +174,18 @@ export default function JobStatus({ jobId, filename }) {
         setJob(data);
         if (data.status === "done" || data.status === "error") {
           clearInterval(intervalRef.current);
+          if (data.status === "done" && !notifiedRef.current) {
+            notifiedRef.current = true;
+            onComplete?.({
+              jobId,
+              filename,
+              stems: data.stems,
+              model: data.model,
+              format: data.output_format,
+              trackName: data.filename?.replace(/\.[^.]+$/, "") ?? jobId,
+              completedAt: new Date().toISOString(),
+            });
+          }
         }
       } catch { /* ignore transient errors */ }
     };
